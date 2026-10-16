@@ -42,6 +42,23 @@ resource "aws_instance" "blog" {
 
   vpc_security_group_ids = [module.blog_sg.id]
 
+  user_data = <<-EOF
+    #!/bin/bash
+    apt-get update -y
+    apt-get install -y nginx
+    cat > /var/www/html/index.html <<'HTML'
+    <!DOCTYPE html>
+    <html>
+      <head><title>My Terraform Project</title></head>
+      <body>
+        <h1>Hello from AWS!</h1>
+        <p>This webpage was deployed using Terraform.</p>
+      </body>
+    </html>
+    HTML
+    systemctl enable --now nginx
+  EOF
+
   subnet_id = module.blog_vpc.public_subnets[0]
 
   tags = {
@@ -57,6 +74,12 @@ module "blog_sg" {
   vpc_id = module.blog_vpc.vpc_id
 
   ingress_rules = {
+    http = {
+      from_port   = 80
+      ip_protocol = "tcp"
+      cidr_ipv4   = "0.0.0.0/0"
+      description = "HTTP access to demo webpage"
+    }
     https = {
       from_port   = 443
       ip_protocol = "tcp"
