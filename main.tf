@@ -44,18 +44,16 @@ resource "aws_instance" "blog" {
 
   user_data = <<-EOF
     #!/bin/bash
+    set -eux
     apt-get update -y
     apt-get install -y nginx
-    cat > /var/www/html/index.html <<'HTML'
-    <!DOCTYPE html>
-    <html>
-      <head><title>My Terraform Project</title></head>
-      <body>
-        <h1>Hello from AWS!</h1>
-        <p>This webpage was deployed using Terraform.</p>
-      </body>
-    </html>
-    HTML
+    printf '%s\n' \
+      '<!DOCTYPE html>' \
+      '<html>' \
+      '<head><title>My Terraform Project</title></head>' \
+      '<body><h1>Hello from AWS!</h1><p>This webpage was deployed using Terraform.</p></body>' \
+      '</html>' \
+      > /var/www/html/index.html
     systemctl enable --now nginx
   EOF
 
