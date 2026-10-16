@@ -19,3 +19,4 @@ moved {
   to   = module.dev.module.blog_autoscaling
 }
 
+#Can delete this file after you have applied the changes
