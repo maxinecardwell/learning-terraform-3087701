@@ -36,34 +36,6 @@ module "blog_vpc" {
   }
 }
 
-resource "aws_instance" "blog" {
-  ami           = data.aws_ami.app_ami.id
-  instance_type = var.instance_type
-
-  vpc_security_group_ids = [module.blog_sg.id]
-
-  user_data = <<-EOF
-    #!/bin/bash
-    set -eux
-    apt-get update -y
-    apt-get install -y nginx
-    printf '%s\n' \
-      '<!DOCTYPE html>' \
-      '<html>' \
-      '<head><title>My Terraform Project</title></head>' \
-      '<body><h1>Hello from AWS!</h1><p>This webpage was deployed using Terraform.</p></body>' \
-      '</html>' \
-      > /var/www/html/index.html
-    systemctl enable --now nginx
-  EOF
-
-  subnet_id = module.blog_vpc.public_subnets[0]
-
-  tags = {
-    Name = "Learning Terraform"
-  }
-}
-
 module "blog_sg" {
   source  = "terraform-aws-modules/security-group/aws"
   version = "6.0.0"
@@ -106,7 +78,7 @@ module "blog_alb" {
   vpc_id  = module.blog_vpc.vpc_id
   subnets = module.blog_vpc.public_subnets
 
-  security_groups = [module.blog_sg.id]
+  security_groups = [module.blog_sg.security_group_id]
 
   listeners = {
     blog-http = {
@@ -134,6 +106,29 @@ resource "aws_lb_target_group_attachment" "blog" {
   target_group_arn = aws_lb_target_group.blog.arn
   target_id        = aws_instance.blog.id
   port             = 80
+}
+
+module "blog_autoscaling" {
+  source  = "terraform-aws-modules/autoscaling/aws"
+  version = "9.3.2"
+
+  name = "blog"
+
+  min_size = 1
+  max_size = 2
+
+  vpc_zone_identifier = module.blog.vpc.public_subnets
+
+  launch_template_name = "blog"
+  security_groups      = [module.blog_sg.security_group_id]
+  instance_type        = var.instance_type
+  image_id             = data.aws_ami.app_ami.id
+
+  traffic_source_attachements = {
+    blog-alb = {
+      traffic_source_identifier = aws_lb_target_group.blog.arn
+    }
+  }
 }
 
 
